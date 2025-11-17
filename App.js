@@ -13,25 +13,31 @@ import {
   Alert,
 } from "react-native";
 import { Audio } from "expo-av";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // Importação do AsyncStorage para persistência de dados
 import { Ionicons } from "@expo/vector-icons";
 
 export default function App() {
-  // telas: 'inicio','login','cadastro','niveis','frases','parabensNivel','parabensFinal','sobre'
-  const [tela, setTela] = useState("inicio");
+  // ============================
+  // ESTADOS GLOBAIS (HOOKS)
+  // Define o estado da interface e dados do usuário
+  // ============================
 
-  const [usuario, setUsuario] = useState("");
+  // telas: 'inicio','login','cadastro','niveis','frases','parabensNivel','parabensFinal','sobre'
+  const [tela, setTela] = useState("inicio"); // Controla a tela ativa do aplicativo
+
+  const [usuario, setUsuario] = useState(""); // Nome de usuário atual
   const [senha, setSenha] = useState("");
   const [sexo, setSexo] = useState(""); // 'masculino', 'feminino', 'naoDeclarar'
   const [mostrarSelecaoSexo, setMostrarSelecaoSexo] = useState(false);
 
-  const [somAtivo, setSomAtivo] = useState(true);
-  const soundRef = useRef(null);
+  const [somAtivo, setSomAtivo] = useState(true); // Estado do som (música de fundo)
+  const soundRef = useRef(null); // Referência para o objeto de som do Expo
 
-  const [nivelSelecionado, setNivelSelecionado] = useState(null);
-  const [frases, setFrases] = useState([]);
-  const [index, setIndex] = useState(0);
+  const [nivelSelecionado, setNivelSelecionado] = useState(null); // ID do nível atual (ex: 'iniciante')
+  const [frases, setFrases] = useState([]); // Array de frases do nível carregado
+  const [index, setIndex] = useState(0); // Índice da frase atual
 
+  // Objeto que armazena a porcentagem de progresso por nível
   const [progressoPorNivel, setProgressoPorNivel] = useState({
     iniciante: 0,
     basico: 0,
@@ -39,18 +45,19 @@ export default function App() {
     avancado: 0,
     profissional: 0,
   });
-  const [progressoTotal, setProgressoTotal] = useState(0);
+  const [progressoTotal, setProgressoTotal] = useState(0); // Progresso total do app (0 a 100%)
 
   // -----------------------------
-  // Carregar e tocar música (global)
+  // EFEITO: Carregar e tocar música (global)
+  // Lógica de áudio assíncrona usando expo-av
   // -----------------------------
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require("./musica.mp3"),
-          { shouldPlay: true, isLooping: true, volume: 0.35 }
+          require("./musica.mp3"), // Carrega o arquivo MP3
+          { shouldPlay: true, isLooping: true, volume: 0.35 } // Define volume e repetição
         );
         if (!mounted) {
           await sound.unloadAsync().catch(() => {});
@@ -58,10 +65,10 @@ export default function App() {
         }
         soundRef.current = sound;
         try {
-          await sound.playAsync();
+          await sound.playAsync(); // Tenta iniciar a reprodução
           setSomAtivo(true);
         } catch {
-          // autoplay bloqueado em alguns dispositivos
+          // Captura bloqueio de autoplay em alguns navegadores/dispositivos
           setSomAtivo(false);
         }
       } catch (e) {
@@ -69,6 +76,7 @@ export default function App() {
         setSomAtivo(false);
       }
     })();
+    // Função de limpeza: descarrega o som ao desmontar o componente
     return () => {
       mounted = false;
       if (soundRef.current) {
@@ -76,7 +84,7 @@ export default function App() {
         soundRef.current = null;
       }
     };
-  }, []);
+  }, []); // Executa apenas uma vez na montagem
 
   async function alternarSom() {
     const s = soundRef.current;
@@ -87,10 +95,10 @@ export default function App() {
     try {
       const status = await s.getStatusAsync();
       if (status.isLoaded && status.isPlaying) {
-        await s.pauseAsync();
+        await s.pauseAsync(); // Pausa a música
         setSomAtivo(false);
       } else {
-        await s.playAsync();
+        await s.playAsync(); // Retoma a música
         setSomAtivo(true);
       }
     } catch (e) {
@@ -98,18 +106,23 @@ export default function App() {
     }
   }
 
-  // -----------------------------
-  // AsyncStorage helpers
-  // -----------------------------
+  // ============================
+  // FUNÇÕES DE PERSISTÊNCIA DE DADOS (AsyncStorage)
+  // Gerencia o salvamento e carregamento de progresso do usuário
+  // ============================
+
+  // Salva um objeto de dados completo para o usuário (usado no login/cadastro)
   async function salvarDadosUsuario(nomeUsuario, dados) {
     if (!nomeUsuario) return;
     try {
+      // Chave: @devEnglish_[nomeUsuario]
       await AsyncStorage.setItem(`@devEnglish_${nomeUsuario}`, JSON.stringify(dados));
     } catch (e) {
       console.warn("Erro salvarDadosUsuario:", e);
     }
   }
 
+  // Carrega o objeto de dados completo para o usuário (usado no login/cadastro)
   async function carregarDadosUsuario(nomeUsuario) {
     if (!nomeUsuario) return null;
     try {
@@ -121,6 +134,7 @@ export default function App() {
     }
   }
 
+  // Salva o índice da última frase vista (andamento) para um nível específico
   async function salvarAndamento(nomeUsuario, nivelId, idx) {
     if (!nomeUsuario) return;
     try {
@@ -133,17 +147,19 @@ export default function App() {
     }
   }
 
+  // Carrega o índice da última frase vista (andamento)
   async function carregarAndamento(nomeUsuario, nivelId) {
     try {
       const dados = (await carregarDadosUsuario(nomeUsuario)) || {};
       return (dados.andamento && typeof dados.andamento[nivelId] === "number")
         ? dados.andamento[nivelId]
-        : 0;
+        : 0; // Retorna 0 se não houver andamento salvo
     } catch {
       return 0;
     }
   }
 
+  // Salva os objetos de progresso por nível e calcula o progresso total
   async function salvarProgressoUsuario(nomeUsuario, novosProgresso) {
     if (!nomeUsuario) return;
     try {
@@ -155,7 +171,8 @@ export default function App() {
         (novosProgresso.intermedio || 0) +
         (novosProgresso.avancado || 0) +
         (novosProgresso.profissional || 0);
-      const total = Math.round((soma / 500) * 1000) / 10; // Calcula com 1 casa decimal
+      // O cálculo do progresso total considera que 500% é o total (100% de 5 níveis)
+      const total = Math.round((soma / 500) * 1000) / 10; 
       dados.progressoTotal = total;
       await salvarDadosUsuario(nomeUsuario, dados);
     } catch (e) {
@@ -163,6 +180,7 @@ export default function App() {
     }
   }
 
+  // Atualiza o estado local de progresso total com base nos progressos por nível
   function atualizarProgressoTotal(novos) {
     const soma =
       (novos.iniciante || 0) +
@@ -170,69 +188,78 @@ export default function App() {
       (novos.intermedio || 0) +
       (novos.avancado || 0) +
       (novos.profissional || 0);
-    // Calcula o total com 1 casa decimal
-    const total = Math.round((soma / 500) * 1000) / 10; 
+    // Calcula o total com 1 casa decimal (Total / 5 Níveis * 100)
+    const total = Math.round((soma / 500) * 1000) / 10;
     setProgressoTotal(total);
     return total;
   }
 
   // -----------------------------
-  // CARREGAR NÍVEL
+  // LÓGICA DE CARREGAMENTO DE NÍVEL
   // -----------------------------
   async function carregarNivel(nivel) {
     setNivelSelecionado(nivel);
-    setIndex(0);
+    setIndex(0); // Reseta o índice para 0 antes de carregar o andamento salvo
     try {
       let arquivo = [];
+      // Carregamento dos arquivos JSON de frases baseados no nível selecionado
       if (nivel === "iniciante") arquivo = require("./frases_iniciante.json");
       else if (nivel === "basico") arquivo = require("./frases_basico.json");
       else if (nivel === "intermedio") arquivo = require("./frases_intermediario.json");
       else if (nivel === "avancado") arquivo = require("./frases_avancado.json");
       else if (nivel === "profissional") arquivo = require("./frases_pro.json");
       setFrases(arquivo || []);
-      // carrega andamento salvo
+
+      // Carrega o andamento salvo para o usuário e nível
       if (usuario) {
         const idx = await carregarAndamento(usuario, nivel);
-        setIndex(idx || 0);
+        setIndex(idx || 0); // Define o índice salvo
       } else {
         setIndex(0);
       }
-      setTela("frases");
+      setTela("frases"); // Muda para a tela de frases
     } catch (e) {
       Alert.alert("Erro", "Não foi possível carregar as frases: " + e);
     }
   }
 
   // -----------------------------
-  // NAVEGAR FRASES
+  // LÓGICA DE NAVEGAÇÃO DE FRASES E PROGRESSO
   // -----------------------------
   async function proximaFrase() {
     if (!frases || frases.length === 0) return;
+    
+    // Se ainda houver frases a serem vistas
     if (index < frases.length - 1) {
       const novoIndex = index + 1;
       setIndex(novoIndex);
 
-      // Calcula a porcentagem com uma casa decimal
+      // 1. CÁLCULO DE PROGRESSO POR NÍVEL:
       const pctBruto = ((novoIndex + 1) / frases.length) * 100;
       const pct = Math.round(pctBruto * 10) / 10; // Arredonda para 1 casa decimal
       
+      // 2. ATUALIZAÇÃO E PERSISTÊNCIA:
       const novos = { ...progressoPorNivel, [nivelSelecionado]: pct };
+      setProgressoPorNivel(novos);
+      const total = atualizarProgressoTotal(novos); // Atualiza estado local e calcula total
+
+      if (usuario) {
+        await salvarAndamento(usuario, nivelSelecionado, novoIndex); // Salva o novo índice (andamento)
+        await salvarProgressoUsuario(usuario, novos); // Salva o novo progresso percentual e total
+      }
+    } else {
+      // CONDIÇÃO DE TÉRMINO DE NÍVEL:
+      // Garante que o progresso do nível seja 100%
+      const novos = { ...progressoPorNivel, [nivelSelecionado]: 100 };
       setProgressoPorNivel(novos);
       const total = atualizarProgressoTotal(novos);
 
       if (usuario) {
-        await salvarAndamento(usuario, nivelSelecionado, novoIndex);
-        await salvarProgressoUsuario(usuario, novos);
-      }
-    } else {
-      // terminou o nível
-      const novos = { ...progressoPorNivel, [nivelSelecionado]: 100 };
-      setProgressoPorNivel(novos);
-      const total = atualizarProgressoTotal(novos);
-      if (usuario) {
         await salvarAndamento(usuario, nivelSelecionado, frases.length - 1);
         await salvarProgressoUsuario(usuario, novos);
       }
+      
+      // MUDANÇA DE TELA: Verifica se o progresso total atingiu 100%
       if (total >= 100) setTela("parabensFinal");
       else setTela("parabensNivel");
     }
@@ -241,10 +268,12 @@ export default function App() {
   function anteriorFrase() {
     if (index > 0) setIndex(index - 1);
   }
-  
+  
   // -----------------------------
-  // RENDER HEADER
+  // RENDERIZAÇÃO DE COMPONENTES DE INTERFACE
   // -----------------------------
+
+  // Componente de Cabeçalho Global (Usuário, Progresso Total, Barra)
   function HeaderGlobal() {
     if (["inicio", "login", "cadastro", "sobre"].includes(tela)) return null;
     
@@ -252,7 +281,7 @@ export default function App() {
     if (sexo === "feminino") emoji = "👩‍💻";
     else if (sexo === "masculino") emoji = "👨‍💻";
 
-    // Formata o progresso total para 1 casa decimal
+    // Formata o progresso total para 1 casa decimal ou 0 casas se for inteiro
     const totalFormatado = progressoTotal % 1 === 0 ? progressoTotal.toFixed(0) : progressoTotal.toFixed(1);
 
     return (
@@ -263,32 +292,31 @@ export default function App() {
           <Text style={styles.headerPercent}>{totalFormatado}%</Text>
         </View>
         <View style={styles.headerProgress}>
+          {/* Barra de progresso: width é dinâmico baseado em progressoTotal */}
           <View style={[styles.headerProgressFill, { width: `${progressoTotal}%` }]} />
         </View>
       </View>
     );
   }
 
-  // -----------------------------
   // BOTÃO GLOBAL DE VOLTAR ◀️
-  // -----------------------------
   function BotaoVoltarGlobal() {
     if (tela === "inicio") return null;
 
+    // Lógica para determinar a tela de destino
     let targetTela = "inicio";
-    if (["login", "cadastro"].includes(tela)) targetTela = "inicio";
-    else if (tela === "sobre") targetTela = "inicio";
+    if (["login", "cadastro", "sobre"].includes(tela)) targetTela = "inicio";
     else if (tela === "niveis") targetTela = "login";
     else if (tela === "frases") targetTela = "niveis";
     else if (["parabensNivel", "parabensFinal"].includes(tela)) targetTela = "niveis";
 
-    // Lógica para voltar do login/cadastro caso os dados tenham sido preenchidos
     const goBack = () => {
-        if (tela === "login") {
-            setUsuario("");
-            setSenha("");
-        }
-        setTela(targetTela);
+      // Limpa dados de login/senha ao voltar da tela de login
+      if (tela === "login") {
+          setUsuario("");
+          setSenha("");
+      }
+      setTela(targetTela);
     };
 
     return (
@@ -301,9 +329,7 @@ export default function App() {
     );
   }
 
-  // -----------------------------
   // BOTÃO GLOBAL DE SOM 🔊
-  // -----------------------------
   function BotaoSomGlobal() {
     return (
       <TouchableOpacity 
@@ -366,7 +392,7 @@ if (tela === "inicio") {
   );
 }
 
-  // TELA LOGIN
+  // TELA LOGIN/ENTRADA DE USUÁRIO
   if (tela === "login") {
     return (
       <SafeAreaView style={styles.containerCentralizado}>
@@ -398,12 +424,13 @@ if (tela === "inicio") {
             }
             const dados = await carregarDadosUsuario(usuario);
             if (dados) {
+              // LOGIN BEM-SUCEDIDO: Carrega progresso salvo e vai para Níveis
               setProgressoPorNivel(dados.progressoPorNivel || progressoPorNivel);
               setProgressoTotal(dados.progressoTotal || 0);
               setSexo(dados.sexo || "");
               setTela("niveis");
             } else {
-              // cria entrada mínima e vai para cadastro
+              // NOVO USUÁRIO: Cria dados iniciais e vai para Cadastro (onde ele preenche o sexo)
               await salvarDadosUsuario(usuario, {
                 progressoPorNivel,
                 progressoTotal,
@@ -417,7 +444,7 @@ if (tela === "inicio") {
           <Text style={styles.botaoTexto}>Entrar</Text>
         </TouchableOpacity>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -464,6 +491,7 @@ if (tela === "inicio") {
               Alert.alert("Atenção", "Preencha usuário, senha (mínimo 8) e selecione o sexo.");
               return;
             }
+            // FINALIZA CADASTRO: Salva dados finais e navega para Níveis
             const dados = {
               progressoPorNivel,
               progressoTotal,
@@ -477,7 +505,7 @@ if (tela === "inicio") {
           <Text style={styles.botaoTexto}>Criar Conta</Text>
         </TouchableOpacity>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -492,7 +520,7 @@ if (tela === "inicio") {
       <SafeAreaView style={styles.containerSobre}>
         <Text style={styles.title}>Sobre o App</Text>
         
-        {/* Adicionei flex: 1 na ScrollView para que ela ocupe todo o espaço e permita a centralização vertical do conteúdo */}
+        {/* ScrollView com flex: 1 para permitir rolagem e centralização vertical do conteúdo */}
         <ScrollView contentContainerStyle={styles.scrollSobre}>
           <Text style={styles.textoSobre}>
             DevEnglish Daily — frases de inglês técnico para desenvolvedores.
@@ -504,7 +532,7 @@ if (tela === "inicio") {
           </Text>
         </ScrollView>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -521,37 +549,38 @@ if (tela === "inicio") {
         
         {/* Area Niveis Centralizada garante a centralização vertical */}
         <View style={styles.areaNiveisCentralizada}>
-            
-            {/* ScrollView AGORA com flex: 1 para centralizar o conteúdo verticalmente */}
-            <ScrollView contentContainerStyle={styles.listaNiveis} style={{ flex: 1 }}>
-              <Text style={styles.titleNiveis}>Selecione o nível</Text> 
-              {[
-                { id: "iniciante", nome: "Iniciante" },
-                { id: "basico", nome: "Básico" },
-                { id: "intermedio", nome: "Intermediário" },
-                { id: "avancado", nome: "Avançado" },
-                { id: "profissional", nome: "Profissional" },
-              ].map((n) => {
-                const nivelProgresso = progressoPorNivel[n.id] || 0;
-                const progressoFormatado = nivelProgresso % 1 === 0 ? nivelProgresso.toFixed(0) : nivelProgresso.toFixed(1);
+          	
+          	{/* ScrollView AGORA com flex: 1 para centralizar o conteúdo verticalmente */}
+          	<ScrollView contentContainerStyle={styles.listaNiveis} style={{ flex: 1 }}>
+          	  <Text style={styles.titleNiveis}>Selecione o nível</Text> 
+          	  {[
+          	    { id: "iniciante", nome: "Iniciante" },
+          	    { id: "basico", nome: "Básico" },
+          	    { id: "intermedio", nome: "Intermediário" },
+          	    { id: "avancado", nome: "Avançado" },
+          	    { id: "profissional", nome: "Profissional" },
+          	  ].map((n) => {
+          	    const nivelProgresso = progressoPorNivel[n.id] || 0;
+                // Formatação do progresso para exibir 1 casa decimal ou 0 casas se for inteiro
+          	    const progressoFormatado = nivelProgresso % 1 === 0 ? nivelProgresso.toFixed(0) : nivelProgresso.toFixed(1);
 
-                return (
-                  <TouchableOpacity
-                    key={n.id}
-                    style={styles.cardNivel}
-                    onPress={async () => {
-                      await carregarNivel(n.id);
-                    }}
-                  >
-                    <Text style={styles.nomeNivel}>{n.nome}</Text>
-                    <Text style={styles.porcentNivel}>{progressoFormatado}%</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+          	    return (
+          	      <TouchableOpacity
+          	        key={n.id}
+          	        style={styles.cardNivel}
+          	        onPress={async () => {
+          	          await carregarNivel(n.id); // Chama a função que carrega os dados JSON e o andamento
+          	        }}
+          	      >
+          	        <Text style={styles.nomeNivel}>{n.nome}</Text>
+          	        <Text style={styles.porcentNivel}>{progressoFormatado}%</Text>
+          	      </TouchableOpacity>
+          	    );
+          	  })}
+          	</ScrollView>
         </View>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -569,12 +598,12 @@ if (tela === "inicio") {
 
         <Text style={styles.contadorTopo}>{index + 1} de {total}</Text>
 
-        {/* Navegação acima do botão de voltar */}
+        {/* Navegação entre as frases */}
         <View style={styles.navegacao}>
           <TouchableOpacity 
             style={[styles.botaoNav, index === 0 && styles.botaoNavInativo]} 
             onPress={anteriorFrase}
-            disabled={index === 0}
+            disabled={index === 0} // Desabilita botão "Anterior" na primeira frase
           >
             <Text style={styles.textoNav}>Anterior</Text>
           </TouchableOpacity>
@@ -584,7 +613,7 @@ if (tela === "inicio") {
           </TouchableOpacity>
         </View>
 
-        {/* FraseBox CENTRALIZADO verticalmente e horizontalmente */}
+        {/* FraseBox: Ocupa o espaço central e exibe a frase */}
         <View style={styles.fraseBox}>
           <ScrollView contentContainerStyle={styles.scrollFrase}>
             <Text style={styles.fraseIngles}>{frases[index]?.en}</Text>
@@ -592,7 +621,7 @@ if (tela === "inicio") {
           </ScrollView>
         </View>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -609,13 +638,13 @@ if (tela === "inicio") {
         
         {/* Conteúdo CENTRALIZADO na área restante da tela */}
         <View style={styles.areaParabensCentralizada}>
-            <View style={styles.cardParabens}>
-              <Text style={styles.tituloParabens}>🎉 Parabéns, {usuario}!</Text>
-              <Text style={styles.textoParabens}>Você concluiu todas as frases deste nível.</Text>
-            </View>
+          	<View style={styles.cardParabens}>
+          	  <Text style={styles.tituloParabens}>🎉 Parabéns, {usuario}!</Text>
+          	  <Text style={styles.textoParabens}>Você concluiu todas as frases deste nível.</Text>
+          	</View>
         </View>
         
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
@@ -632,13 +661,13 @@ if (tela === "inicio") {
 
         {/* Conteúdo CENTRALIZADO na área restante da tela */}
         <View style={styles.areaParabensCentralizada}>
-            <View style={styles.cardParabensFinal}>
-              <Text style={styles.tituloParabensFinal}>🎓 Conclusão Total!</Text>
-              <Text style={styles.textoParabensFinal}>Parabéns, {usuario}! Você concluiu todos os níveis do DevEnglish Daily.</Text>
-            </View>
+          	<View style={styles.cardParabensFinal}>
+          	  <Text style={styles.tituloParabensFinal}>🎓 Conclusão Total!</Text>
+          	  <Text style={styles.textoParabensFinal}>Parabéns, {usuario}! Você concluiu todos os níveis do DevEnglish Daily.</Text>
+          	</View>
         </View>
 
-        {/* CORREÇÃO: Usando um Fragmento (<>) para agrupar os elementos JSX adjacentes */}
+        {/* Fragmento para agrupar botões globais */}
         <>
           <BotaoVoltarGlobal />
           <BotaoSomGlobal />
