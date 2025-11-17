@@ -1,11 +1,22 @@
-# Sample Snack app
+# DevEnglish Daily: Frases Técnicas para Desenvolvedores 🚀
 
-Open the `App.js` file to start writing some code. You can preview the changes directly on your phone or tablet by scanning the **QR code** or use the iOS or Android emulators. When you're done, click **Save** and share the link!
+App de frases de inglês técnico para desenvolvedores que já possuem algum conhecimento em inglês, desenvolvido em React Native.
 
-When you're ready to see everything that Expo provides (or if you want to use your own editor) you can **Download** your project and use it with [expo cli](https://docs.expo.dev/get-started/installation/#expo-cli)).
+## 1. Definição do Problema (Entrega Parcial)
 
-All projects created in Snack are publicly available, so you can easily share the link to this project via link, or embed it on a web page with the `<>` button.
+* **Problema:** Muitos desenvolvedores brasileiros possuem dificuldades em comunicar-se e compreender termos técnicos em inglês, o que limita o acesso a documentações, tutoriais e oportunidades.
+* **Foco:** O aplicativo fornece frases comuns e vocabulário usado no desenvolvimento de software.
 
-If you're having problems, you can tweet to us [@expo](https://twitter.com/expo) or ask in our [forums](https://forums.expo.dev/c/expo-dev-tools/61) or [Discord](https://chat.expo.dev/).
+## 2. Solução e Funcionalidades
 
-Snack is Open Source. You can find the code on the [GitHub repo](https://github.com/expo/snack).
+* **Funcionalidade Central:** Apresenta frases em inglês com tradução em português, com navegação por diferentes níveis de proficiência (Iniciante, Básico, Intermediário, Avançado e Profissional).
+* **Progresso:** O progresso do usuário é registrado localmente.
+
+## 3. Dados Escolhidos
+
+* **Estrutura:** As frases são armazenadas em arquivos JSON, categorizados por nível (`frases_iniciante.json`, `frases_pro.json`, etc.).
+* **Critério:** A seleção visa cobrir termos essenciais para a comunicação e leitura técnica em diferentes etapas da carreira de desenvolvimento.
+
+## 4. Próximos Passos
+
+* **Entrega Final:** Apresentação e Código Comentado.s
